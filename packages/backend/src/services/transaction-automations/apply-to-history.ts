@@ -37,8 +37,16 @@ export const applyAutomationToHistory = withTransaction(
     const categorizedAt = new Date().toISOString();
     const appliedIds = new Set<RecordId>();
 
-    for (const row of rows) {
-      const applied = await applyActions({ transaction: row, rule, userId, skipSetCategory: false, categorizedAt });
+    // The scan is newest first; linking oldest first pairs a run of equal fixed amounts in booking order.
+    for (const row of rows.toReversed()) {
+      const applied = await applyActions({
+        transaction: row,
+        rule,
+        userId,
+        skipSetCategory: false,
+        categorizedAt,
+        includeLinkActions: true,
+      });
       if (applied) appliedIds.add(row.id);
     }
 

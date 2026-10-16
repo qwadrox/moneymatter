@@ -22,6 +22,17 @@ export type AutomationListOperator = (typeof AUTOMATION_LIST_OPERATORS)[number];
 export const AUTOMATION_NOTE_MODES = ['replace', 'append', 'prepend'] as const;
 export type AutomationNoteMode = (typeof AUTOMATION_NOTE_MODES)[number];
 
+/** How `link_transfer` recognises the other leg: same amount and currency, or the bank's shared reference (FX conversions). */
+export const AUTOMATION_TRANSFER_MATCH_MODES = ['amount', 'reference'] as const;
+export type AutomationTransferMatchMode = (typeof AUTOMATION_TRANSFER_MATCH_MODES)[number];
+
+/** Which date `link_transfer` compares: the stored transaction date, or the bank's value date when it has one. */
+export const AUTOMATION_TRANSFER_DATE_BASES = ['transaction', 'value'] as const;
+export type AutomationTransferDateBasis = (typeof AUTOMATION_TRANSFER_DATE_BASES)[number];
+
+/** Actions that link the matched row to another record. They run after a bank sync, not while the row is created. */
+export const AUTOMATION_LINK_ACTION_TYPES = ['link_transfer', 'link_loan_payment'] as const;
+
 export type AutomationAmountCurrency = { mode: 'transaction' } | { mode: 'base' } | { mode: 'specific'; code: string };
 
 export type AutomationCondition =
@@ -51,7 +62,16 @@ export type AutomationAction =
   | { type: 'set_category'; categoryId: RecordId }
   | { type: 'add_tags'; tagIds: RecordId[] }
   | { type: 'set_payee'; payeeId: RecordId }
-  | { type: 'set_note'; mode: AutomationNoteMode; value: string };
+  | { type: 'set_note'; mode: AutomationNoteMode; value: string }
+  | {
+      type: 'link_transfer';
+      /** Account holding the other leg. */
+      accountId: RecordId;
+      matchBy: AutomationTransferMatchMode;
+      dateBasis: AutomationTransferDateBasis;
+      maxDaysApart: number;
+    }
+  | { type: 'link_loan_payment'; loanAccountId: RecordId };
 
 export type AutomationActionType = AutomationAction['type'];
 
@@ -111,6 +131,8 @@ export const AUTOMATION_LIMITS = {
   maxActions: 4,
   maxNoteLength: 200,
   maxNameLength: 120,
+  /** Widest date gap `link_transfer` accepts between the two legs. */
+  maxTransferDaysApart: 10,
   /** Rows the review dialog can list and one apply call can write. */
   maxApplyIds: 500,
   /** Newest rows the retroactive scan evaluates; the inline preview keeps its own smaller cap. */

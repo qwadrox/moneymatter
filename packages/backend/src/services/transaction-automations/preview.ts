@@ -145,6 +145,10 @@ const isSettled = ({
       if (action.mode === 'replace')
         return buildNote({ current: note, mode: action.mode, value: action.value }) === note;
       return action.mode === 'append' ? note.endsWith(action.value.trim()) : note.startsWith(action.value.trim());
+    case 'link_transfer':
+    case 'link_loan_payment':
+      // The scan only holds non-transfer rows, so a link action always has work left.
+      return false;
     default:
       return action satisfies never;
   }

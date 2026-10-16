@@ -4,6 +4,8 @@ import {
   AUTOMATION_LIST_OPERATORS,
   AUTOMATION_NOTE_MODES,
   AUTOMATION_TEXT_OPERATORS,
+  AUTOMATION_TRANSFER_DATE_BASES,
+  AUTOMATION_TRANSFER_MATCH_MODES,
   type AutomationAction,
   type AutomationCondition,
   TRANSACTION_TYPES,
@@ -112,13 +114,26 @@ export const actionsSchema = z
         mode: z.enum(AUTOMATION_NOTE_MODES),
         value: z.string().trim().min(1).max(AUTOMATION_LIMITS.maxNoteLength),
       }),
+      z.object({
+        type: z.literal('link_transfer'),
+        accountId: recordId(),
+        matchBy: z.enum(AUTOMATION_TRANSFER_MATCH_MODES),
+        dateBasis: z.enum(AUTOMATION_TRANSFER_DATE_BASES),
+        maxDaysApart: z.number().int().min(0).max(AUTOMATION_LIMITS.maxTransferDaysApart),
+      }),
+      z.object({ type: z.literal('link_loan_payment'), loanAccountId: recordId() }),
     ]),
   )
   .min(1)
   .max(AUTOMATION_LIMITS.maxActions)
   .refine((actions) => new Set(actions.map((action) => action.type)).size === actions.length, {
     message: 'Action types must be unique',
-  });
+  })
+  .refine(
+    (actions) =>
+      actions.filter((action) => action.type === 'link_transfer' || action.type === 'link_loan_payment').length <= 1,
+    { message: 'A rule can link a transaction one way only' },
+  );
 
 const name = z.string().trim().min(1).max(AUTOMATION_LIMITS.maxNameLength);
 

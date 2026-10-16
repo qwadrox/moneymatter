@@ -8,6 +8,8 @@ import TransactionTags from '@models/transaction-tags.model';
 import * as Transactions from '@models/transactions.model';
 import { DOMAIN_EVENTS, eventBus } from '@services/common/event-bus';
 
+import { applyLinkAction, isLinkAction } from './link-actions';
+
 const MAX_NOTE_LENGTH = 2000;
 
 export const buildNote = ({
@@ -35,6 +37,7 @@ export const applyActions = async ({
   userId,
   skipSetCategory,
   categorizedAt = new Date().toISOString(),
+  includeLinkActions = false,
 }: {
   transaction: Transactions.default;
   rule: TransactionAutomations;
@@ -42,10 +45,18 @@ export const applyActions = async ({
   skipSetCategory: boolean;
   /** Shared stamp so every row of one bulk run carries the same `categorizedAt`. */
   categorizedAt?: string;
+  /**
+   * Link actions need the other leg, which a row being created rarely has yet; the post-sync
+   * pass (`run-link-automations.ts`) runs them instead. Applying to history runs them here.
+   */
+  includeLinkActions?: boolean;
 }): Promise<boolean> => {
   let applied = false;
 
-  for (const action of rule.actions) {
+  // Link actions go last: they turn the row into a transfer leg.
+  const actions = [...rule.actions.filter((action) => !isLinkAction(action)), ...rule.actions.filter(isLinkAction)];
+
+  for (const action of actions) {
     switch (action.type) {
       case 'set_category': {
         const source = transaction.categorizationMeta?.source;
@@ -95,6 +106,13 @@ export const applyActions = async ({
           note: buildNote({ current: transaction.note ?? '', mode: action.mode, value: action.value }),
         });
         break;
+      case 'link_transfer':
+      case 'link_loan_payment': {
+        if (!includeLinkActions) continue;
+        const linkedIds = await applyLinkAction({ transactionId: transaction.id, action, userId, ruleId: rule.id });
+        if (!linkedIds) continue;
+        break;
+      }
       default:
         action satisfies never;
     }

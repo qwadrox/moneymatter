@@ -75,6 +75,12 @@ export const collectAutomationRefs = ({ conditions, actions }: AutomationBody): 
         break;
       case 'set_note':
         break;
+      case 'link_transfer':
+        refs.push({ refType: 'account', refId: action.accountId, path });
+        break;
+      case 'link_loan_payment':
+        refs.push({ refType: 'account', refId: action.loanAccountId, path });
+        break;
       default:
         action satisfies never;
     }
