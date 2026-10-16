@@ -42,13 +42,15 @@ export const reorderTransactionAutomations = async ({
 
 export const previewTransactionAutomation = async ({
   conditions,
+  actions,
   automationId,
   limit,
 }: {
   conditions?: AutomationConditions;
+  actions?: AutomationAction[];
   automationId?: RecordId;
   limit?: number;
-}): Promise<AutomationPreviewResult> => api.post('/automations/preview', { conditions, automationId, limit });
+}): Promise<AutomationPreviewResult> => api.post('/automations/preview', { conditions, actions, automationId, limit });
 
 export const applyAutomationToHistory = async ({
   id,

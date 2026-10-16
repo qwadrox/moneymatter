@@ -3,20 +3,29 @@ import { Button } from '@/components/lib/ui/button';
 import TransactionRecord from '@/components/transactions-list/transaction-record.vue';
 import { usePreviewAutomation } from '@/composable/data-queries/transaction-automations';
 import { extractApiErrorMessage } from '@/js/errors';
-import type { AutomationConditions } from '@bt/shared/types';
+import type { AutomationAction, AutomationConditions } from '@bt/shared/types';
 import { Loader2Icon, PlayIcon } from '@lucide/vue';
 import { computed, ref } from 'vue';
 
-const props = defineProps<{ conditions: AutomationConditions; disabled: boolean }>();
+const props = defineProps<{
+  conditions: AutomationConditions;
+  /** Lets a link action drop rows it can never link. */
+  actions?: AutomationAction[];
+  disabled: boolean;
+}>();
 
 const preview = usePreviewAutomation();
 
 const lastRun = ref<string | null>(null);
-const isStale = computed(() => lastRun.value !== null && lastRun.value !== JSON.stringify(props.conditions));
+const runKey = () => JSON.stringify(props.actions ? [props.conditions, props.actions] : props.conditions);
+const isStale = computed(() => lastRun.value !== null && lastRun.value !== runKey());
 
 const run = () => {
-  const snapshot = JSON.stringify(props.conditions);
-  preview.mutate({ conditions: props.conditions }, { onSuccess: () => (lastRun.value = snapshot) });
+  const snapshot = runKey();
+  preview.mutate(
+    { conditions: props.conditions, actions: props.actions },
+    { onSuccess: () => (lastRun.value = snapshot) },
+  );
 };
 </script>
 

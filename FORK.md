@@ -37,6 +37,10 @@ linking (`transfer_to_loan`). Use it for fixed installments, e.g. note contains 
   sync.
 - Rows a rule linked are stamped (`externalData.automationLink`). If you unlink one by hand, it stays unlinked.
 - "Apply to history" and preview support the new actions. A rule can hold at most one link action.
+- Preview and "Apply to history" skip rows the link action can't link: pending or held rows (their amount can
+  still change), rows a rule linked that you unlinked by hand, and rows on the wrong side. A pending row gets
+  linked by the post-sync pass once the bank books it. In the editor this applies only when the draft's only
+  action is a link action; if the rule has other actions too, the row stays listed for them.
 - The live create hook skips link actions. Every other action type behaves exactly as upstream.
 
 ### Container images on GHCR
@@ -62,17 +66,18 @@ New files hold most of the code:
 
 Small edits in upstream files:
 
-| File                                                                                  | Change                                               |
-| ------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `packages/shared/src/types/transaction-automations.ts`                                | Two action types and their constants                 |
-| `packages/backend/.../transaction-automations/zod-schemas.ts`                         | Schemas for the two actions; at most one link action |
-| `packages/backend/.../transaction-automations/apply-actions.ts`                       | Link actions run last and only when asked            |
-| `packages/backend/.../transaction-automations/apply-to-history.ts`                    | Oldest first; link actions enabled                   |
-| `packages/backend/.../transaction-automations/preview.ts`, `references.ts`            | Settled check; account references                    |
-| `packages/backend/.../bank-data-providers/utils/link-and-emit-synced-transactions.ts` | Calls the post-sync pass before the auto-matcher     |
-| `packages/backend/.../mcp/tools/transaction-automation-inputs.ts`                     | Documents the actions for the MCP tool               |
-| `packages/frontend/src/pages/automations/**`                                          | Editor UI, validation, chips                         |
-| `packages/frontend/src/i18n/locales/chunks/en/pages/automations.json`                 | English strings (other locales fall back to English) |
+| File                                                                                  | Change                                                                         |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `packages/shared/src/types/transaction-automations.ts`                                | Two action types and their constants                                           |
+| `packages/backend/.../transaction-automations/zod-schemas.ts`                         | Schemas for the two actions; at most one link action; draft actions on preview |
+| `packages/backend/.../transaction-automations/apply-actions.ts`                       | Link actions run last and only when asked                                      |
+| `packages/backend/.../transaction-automations/apply-to-history.ts`                    | Oldest first; link actions enabled                                             |
+| `packages/backend/.../transaction-automations/preview.ts`, `references.ts`            | Settled check for link actions; draft link actions; account references         |
+| `packages/backend/.../bank-data-providers/utils/link-and-emit-synced-transactions.ts` | Calls the post-sync pass before the auto-matcher                               |
+| `packages/backend/.../mcp/tools/transaction-automation-inputs.ts`                     | Documents the actions for the MCP tool                                         |
+| `packages/backend/src/tests/helpers/transaction-automations.ts`                       | Preview helper accepts draft actions                                           |
+| `packages/frontend/src/pages/automations/**`, `src/api/transaction-automations.ts`    | Editor UI, validation, chips; link-only draft sent to preview                  |
+| `packages/frontend/src/i18n/locales/chunks/en/pages/automations.json`                 | English strings (other locales fall back to English)                           |
 
 ## Syncing with upstream
 

@@ -429,6 +429,79 @@ describe('Automation link actions (E2E)', () => {
 
       await expectPairedByValueDate({ mainAccountId, topUpAccountId });
     });
+
+    it('lists a pending row for a non-link rule but not for a link rule', async () => {
+      await helpers.patchUserSettings({ patch: { importPendingBankTransactions: true }, raw: true });
+      const { connectionId, mainAccountId, topUpAccountId } = await setupTwoAccounts();
+
+      await syncAccountWith({
+        connectionId,
+        accountId: topUpAccountId,
+        transactions: [topUpIncome({ onDay: day(2), ref: 'rev_pending' })],
+      });
+      // A pending card payment has no value date yet.
+      await syncAccountWith({
+        connectionId,
+        accountId: mainAccountId,
+        transactions: [
+          {
+            ...cardTopUp({ cardDay: day(2), bookedDay: day(2), ref: 'erste_pending' }),
+            valueDate: undefined,
+            status: 'PDNG',
+          },
+        ],
+      });
+
+      const [pending] = await listTransactions({ accountId: mainAccountId });
+      expect(pending!.transferNature).toBe(TRANSACTION_TRANSFER_NATURE.not_transfer);
+
+      const linkRule = await topUpRule({ mainAccountId, topUpAccountId });
+      const noteActions: AutomationAction[] = [{ type: 'set_note', mode: 'append', value: '#topup' }];
+      const noteRule = await helpers.createAutomation({
+        payload: { name: 'Tag top-ups', conditions: linkRule.conditions, actions: noteActions },
+        raw: true,
+      });
+
+      const preview = (payload: Parameters<typeof helpers.previewAutomation>[0]['payload']) =>
+        helpers.previewAutomation({ payload: { ...payload, limit: 50 }, raw: true });
+
+      // Apply-to-history review dialog.
+      const linkReview = await preview({ automationId: linkRule.id });
+      expect(linkReview.matches).toHaveLength(0);
+      expect(linkReview.settledCount).toBe(1);
+      expect((await preview({ automationId: noteRule.id })).matches.map((tx) => tx.id)).toEqual([pending!.id]);
+
+      // Editor preview of a draft.
+      expect((await preview({ conditions: linkRule.conditions, actions: linkRule.actions })).matches).toHaveLength(0);
+      expect((await preview({ conditions: linkRule.conditions, actions: noteActions })).matches).toHaveLength(1);
+      expect((await preview({ conditions: linkRule.conditions })).matches).toHaveLength(1);
+      expect(
+        (await preview({ conditions: linkRule.conditions, actions: [...noteActions, ...linkRule.actions] })).matches,
+      ).toHaveLength(1);
+    });
+
+    it('does not list a row the user unlinked from a rule', async () => {
+      const { connectionId, mainAccountId, topUpAccountId } = await setupTwoAccounts();
+      const rule = await topUpRule({ mainAccountId, topUpAccountId });
+
+      await syncAccountWith({
+        connectionId,
+        accountId: topUpAccountId,
+        transactions: [topUpIncome({ onDay: day(4), ref: 'rev_unlinked' })],
+      });
+      await syncAccountWith({
+        connectionId,
+        accountId: mainAccountId,
+        transactions: [cardTopUp({ cardDay: day(4), bookedDay: day(2), ref: 'erste_unlinked' })],
+      });
+
+      const [linked] = await listTransactions({ accountId: mainAccountId });
+      await helpers.unlinkTransferTransactions({ transferIds: [linked!.transferId!], raw: true });
+
+      const review = await helpers.previewAutomation({ payload: { automationId: rule.id, limit: 50 }, raw: true });
+      expect(review.matches).toHaveLength(0);
+      expect(review.settledCount).toBe(1);
+    });
   });
 
   describe('validation', () => {

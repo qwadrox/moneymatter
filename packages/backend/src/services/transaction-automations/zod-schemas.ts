@@ -160,11 +160,16 @@ export const reorderAutomationsBodySchema = z.object({
 export const previewAutomationBodySchema = z
   .object({
     conditions: conditionsSchema.optional(),
+    /** The editor's draft actions; a saved rule's actions come from `automationId`. */
+    actions: actionsSchema.optional(),
     automationId: recordId().optional(),
     limit: z.number().int().min(1).max(AUTOMATION_LIMITS.maxApplyIds).optional(),
   })
   .refine(({ conditions, automationId }) => Boolean(conditions) !== Boolean(automationId), {
     message: 'Provide exactly one of conditions or automationId',
+  })
+  .refine(({ actions, automationId }) => !(actions && automationId), {
+    message: 'Actions go with conditions, not automationId',
   });
 
 export const applyAutomationBodySchema = z.object({

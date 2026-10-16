@@ -94,7 +94,7 @@ export async function previewAutomation<R extends boolean | undefined = undefine
   payload,
   raw,
 }: {
-  payload: { conditions?: AutomationConditions; automationId?: RecordId; limit?: number };
+  payload: { conditions?: AutomationConditions; actions?: AutomationAction[]; automationId?: RecordId; limit?: number };
   raw?: R;
 }) {
   return makeRequest<AutomationPreviewResult, R>({

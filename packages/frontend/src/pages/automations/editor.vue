@@ -18,6 +18,7 @@ import { captureException } from '@/lib/sentry';
 import { ROUTES_NAMES } from '@/routes';
 import { useTagsStore } from '@/stores';
 import {
+  AUTOMATION_LINK_ACTION_TYPES,
   type AutomationAction,
   type AutomationConditions,
   type AutomationRefType,
@@ -163,6 +164,15 @@ const isValid = computed(
 );
 
 const showErrors = ref(false);
+
+/** A valid link-only draft goes to the preview, which then drops rows the link can never act on. */
+const previewActions = computed(() =>
+  form.actions.length &&
+  form.actions.every((action) => (AUTOMATION_LINK_ACTION_TYPES as readonly string[]).includes(action.type)) &&
+  actionErrors.value.every((error) => !error)
+    ? finalizeActions({ actions: form.actions })
+    : undefined,
+);
 
 const normalizedConditions = computed<AutomationConditions>(() => ({
   match: form.conditions.match,
@@ -348,7 +358,11 @@ const confirmLeave = () => {
             <template #header>
               <div class="text-sm font-semibold">{{ $t('automations.editor.preview.title') }}</div>
             </template>
-            <PreviewPanel :conditions="normalizedConditions" :disabled="!areConditionsValid" />
+            <PreviewPanel
+              :conditions="normalizedConditions"
+              :actions="previewActions"
+              :disabled="!areConditionsValid"
+            />
           </RailSection>
         </div>
 

@@ -116,6 +116,21 @@ export const findTransferCounterpart = async ({
   return best.candidate;
 };
 
+/**
+ * The checks `applyLinkAction` can make on the row alone. A pending or held amount can still
+ * change, so such a row waits for the post-sync pass to see it booked.
+ */
+export const canLinkActionAct = ({ tx, action }: { tx: Transactions.default; action: AutomationLinkAction }) => {
+  if (tx.transferNature !== TRANSACTION_TRANSFER_NATURE.not_transfer || tx.refundLinked || tx.isPlanned) return false;
+  if (!isLinkableRow({ tx })) return false;
+  if (action.type === 'link_loan_payment') return tx.transactionType === TRANSACTION_TYPES.expense;
+  return tx.accountId !== action.accountId && (action.matchBy !== 'reference' || bankReference({ tx }) !== null);
+};
+
+/** Preview's settled check: the action can never link the row, or a rule linked it once and the user unlinked it. */
+export const isLinkActionSettled = ({ tx, action }: { tx: Transactions.default; action: AutomationLinkAction }) =>
+  hasAutomationLinkStamp({ tx }) || !canLinkActionAct({ tx, action });
+
 const stampRows = async ({ ids, ruleId, userId }: { ids: RecordId[]; ruleId: RecordId; userId: number }) => {
   const stamp: AutomationLinkStamp = { ruleId, linkedAt: new Date().toISOString() };
   const rows = await findTransactions({
@@ -169,10 +184,7 @@ export const applyLinkAction = async ({
 }): Promise<RecordId[] | null> => {
   // The caller's instance may predate an earlier link in the same run.
   const tx = await Transactions.default.findByPk(transactionId);
-  if (!tx || tx.transferNature !== TRANSACTION_TRANSFER_NATURE.not_transfer || tx.refundLinked || tx.isPlanned) {
-    return null;
-  }
-  if (!isLinkableRow({ tx })) return null;
+  if (!tx || !canLinkActionAct({ tx, action })) return null;
 
   if (action.type === 'link_transfer') {
     const counterpart = await findTransferCounterpart({ tx, action, userId });
@@ -190,8 +202,6 @@ export const applyLinkAction = async ({
     await stampRows({ ids: [baseId, oppositeId], ruleId, userId });
     return [baseId, oppositeId];
   }
-
-  if (tx.transactionType !== TRANSACTION_TYPES.expense) return null;
 
   const loanAccount = await Accounts.findOne({
     where: { id: action.loanAccountId, userId },

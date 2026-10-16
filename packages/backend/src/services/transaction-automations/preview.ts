@@ -25,6 +25,7 @@ import { buildNote } from './apply-actions';
 import { type AutomationResolvers, buildAutomationContext, resolveGroupAncestry } from './build-context';
 import { buildEligibilityWhere } from './eligibility';
 import { evaluateConditions } from './evaluate-conditions';
+import { isLinkAction, isLinkActionSettled } from './link-actions';
 import { validateAutomationRefs } from './references';
 
 // ponytail: account/type items are pushed to SQL under match:'all'; everything else is an
@@ -147,8 +148,7 @@ const isSettled = ({
       return action.mode === 'append' ? note.endsWith(action.value.trim()) : note.startsWith(action.value.trim());
     case 'link_transfer':
     case 'link_loan_payment':
-      // The scan only holds non-transfer rows, so a link action always has work left.
-      return false;
+      return isLinkActionSettled({ tx: row, action });
     default:
       return action satisfies never;
   }
@@ -183,15 +183,19 @@ const excludeSettledRows = async ({
 /**
  * Dry-runs either an unsaved condition set or a saved rule. The saved-rule path backs the
  * review dialog, so it scans deeper and returns as many matches as the dialog can list.
+ * An unsaved set skips the settled check, except that a draft holding only a link action
+ * drops the rows that action can never link.
  */
 export const previewAutomation = async ({
   userId,
   conditions,
+  actions,
   automationId,
   limit,
 }: {
   userId: number;
   conditions?: AutomationConditions;
+  actions?: AutomationAction[];
   automationId?: RecordId;
   limit?: number;
 }): Promise<Omit<AutomationPreviewResult, 'matches'> & { matches: TransactionApiResponse[] }> => {
@@ -215,7 +219,8 @@ export const previewAutomation = async ({
     conditions: scannedConditions,
     scanLimit: rule ? AUTOMATION_LIMITS.applyScanLimit : AUTOMATION_LIMITS.previewScanLimit,
   });
-  const rows = rule ? await excludeSettledRows({ rows: scan.rows, actions: rule.actions }) : scan.rows;
+  const settledActions = rule ? rule.actions : actions?.length && actions.every(isLinkAction) ? actions : null;
+  const rows = settledActions ? await excludeSettledRows({ rows: scan.rows, actions: settledActions }) : scan.rows;
 
   return {
     matchedCount: rows.length,
