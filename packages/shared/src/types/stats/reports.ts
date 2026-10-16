@@ -20,7 +20,7 @@ export type GetSpendingsByCategoriesByTypeReturnType = {
 };
 
 // Cash Flow Analytics
-export const CASH_FLOW_GRANULARITIES = ['monthly', 'biweekly', 'weekly'] as const;
+export const CASH_FLOW_GRANULARITIES = ['monthly', 'biweekly', 'weekly', 'daily'] as const;
 export type CashFlowGranularity = (typeof CASH_FLOW_GRANULARITIES)[number];
 
 // Category breakdown within a period

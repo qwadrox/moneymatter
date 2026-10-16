@@ -43,6 +43,19 @@ export const WIDGET_REGISTRY: Record<string, WidgetDefinition> = {
     component: () => import('@/components/widgets/balance-trend.vue'),
     needsPeriod: true,
   },
+  'spending-pace': {
+    id: 'spending-pace',
+    name: 'dashboard.widgets.registry.spendingPace.name',
+    description: 'dashboard.widgets.registry.spendingPace.description',
+    defaultColSpan: 1,
+    defaultRowSpan: 1,
+    allowedSizes: [
+      { colSpan: 1, rowSpan: 1, label: '1×1' },
+      { colSpan: 2, rowSpan: 1, label: '2×1' },
+    ],
+    component: () => import('@/components/widgets/spending-pace-widget/index.vue'),
+    needsPeriod: false,
+  },
   'spending-categories': {
     id: 'spending-categories',
     name: 'dashboard.widgets.registry.spendingCategories.name',

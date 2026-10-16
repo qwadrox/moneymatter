@@ -21,6 +21,8 @@ import { computed, ref, watch } from 'vue';
 
 import { useUserStore } from './user';
 
+const BALANCE_AFFECTING_FIELDS = ['initialBalance', 'currentBalance', 'creditLimit', 'excludeFromStats'];
+
 export const useAccountsStore = defineStore('accounts', () => {
   const queryClient = useQueryClient();
   const { isUserExists } = storeToRefs(useUserStore());
@@ -116,7 +118,7 @@ export const useAccountsStore = defineStore('accounts', () => {
       queryKey: VUE_QUERY_CACHE_KEYS.accountGroups,
     });
 
-    if (['initialBalance', 'currentBalance', 'creditLimit', 'excludeFromStats'].some((field) => field in data)) {
+    if (BALANCE_AFFECTING_FIELDS.some((field) => field in data)) {
       queryClient.invalidateQueries({
         predicate: (query) => {
           const queryKey = query.queryKey as string[];

@@ -13,6 +13,7 @@ import {
   isBefore,
   max,
   min,
+  startOfDay,
   startOfMonth,
   startOfQuarter,
   startOfWeek,
@@ -91,6 +92,7 @@ const GRANULARITY_SPECS: Record<StatsGranularity, GranularitySpec> = {
     endOf: (date) => endOfDay(addDays(addWeeks(date, 2), -1)),
     advance: (date) => addWeeks(date, 2),
   },
+  daily: { startOf: startOfDay, endOf: endOfDay, advance: (date) => addDays(date, 1) },
 };
 
 /**

@@ -78,10 +78,16 @@ describe('computeAssetsLiabilities', () => {
       refCreditLimit: 1_000,
     });
 
-    expect(computeAssetsLiabilities({ point, accounts: [card], includeCreditLimit: true }).liabilities).toContainEqual({
-      key: 'creditAndOverdrafts',
-      amount: 200,
-    });
+    const result = computeAssetsLiabilities({ point, accounts: [card], includeCreditLimit: true });
+
+    expect(result.liabilities).toContainEqual({ key: 'creditAndOverdrafts', amount: 200 });
+    expect(result.netWorth).toBe(
+      point.accountsBalance +
+        point.portfoliosBalance +
+        point.venturesBalance +
+        point.vehiclesBalance +
+        point.loansBalance,
+    );
   });
 });
 

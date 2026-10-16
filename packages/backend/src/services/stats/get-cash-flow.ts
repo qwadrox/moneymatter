@@ -5,6 +5,8 @@ import {
   type RecordId,
   TRANSACTION_TYPES,
 } from '@bt/shared/types';
+import { t } from '@i18n/index';
+import { ValidationError } from '@js/errors';
 import { expandCategoryIdsWithDescendants, getRootCategoryId } from '@services/categories/category-hierarchy';
 import {
   AccessibleCategoryInfo,
@@ -14,11 +16,13 @@ import { withTransaction } from '@services/common/with-transaction';
 import { type StatsScopeFilters, buildStatsScopeWhere } from '@services/stats/stats-scope-filters';
 import { statsTransactions } from '@services/stats/stats-transactions';
 import { getUserSettings } from '@services/user-settings/get-user-settings';
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format } from 'date-fns';
 import { Op } from 'sequelize';
 
 import { computeCategoryAllocations } from './category-allocation';
 import { findBucketIndex, generatePeriodBuckets } from './utils';
+
+const MAX_DAILY_BUCKETS = 366;
 
 interface GetCashFlowParams extends StatsScopeFilters {
   userId: number;
@@ -118,7 +122,16 @@ export const getCashFlow = withTransaction(
     excludedCategoryIds,
     excludePlanned,
   }: GetCashFlowParams): Promise<GetCashFlowResponse> => {
-    // Generate period buckets
+    if (granularity === 'daily') {
+      const requestedPoints = differenceInCalendarDays(new Date(to), new Date(from)) + 1;
+      if (requestedPoints > MAX_DAILY_BUCKETS) {
+        throw new ValidationError({
+          message: t({ key: 'stats.netWorthHistoryTooManyPoints' }),
+          details: { maxPoints: MAX_DAILY_BUCKETS, requestedPoints },
+        });
+      }
+    }
+
     const buckets = generatePeriodBuckets({ from, to, granularity });
 
     // Initialize period data

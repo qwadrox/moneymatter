@@ -10,6 +10,7 @@ import { DesktopOnlyTooltip } from '@/components/lib/ui/tooltip';
 import { useEarliestTransactionDate } from '@/composable/data-queries/earliest-transaction-date';
 import { useFormatCurrency } from '@/composable/formatters';
 import { useBaseBalanceTotals } from '@/composable/use-base-balance-totals';
+import { captureException } from '@/lib/sentry';
 import { cn } from '@/lib/utils';
 import { ROUTES_NAMES } from '@/routes/constants';
 import { useAccountsStore, useRootStore } from '@/stores';
@@ -61,11 +62,19 @@ const totalCash = computed(() => sumBaseBalance({ accounts: cashAccounts.value }
 const compactTotal = computed(() => formatCompactAmount(totalCash.value, baseCurrencyCode.value ?? ''));
 
 const monthAgo = subMonths(new Date(), 1);
-const { data: prevBalanceRows, isFetching: isPrevFetching } = useQuery({
+const {
+  data: prevBalanceRows,
+  isFetching: isPrevFetching,
+  error: prevBalancesError,
+} = useQuery({
   queryKey: [...VUE_QUERY_CACHE_KEYS.widgetCashAccountsPrevBalances, format(monthAgo, 'yyyy-MM-dd')],
   queryFn: () => getBalanceHistory({ from: monthAgo, to: monthAgo }),
   staleTime: Infinity,
   enabled: isAppInitialized,
+});
+
+watch(prevBalancesError, (value) => {
+  if (value) captureException({ error: value, context: { scope: 'cash-accounts-widget:prev-balances' } });
 });
 
 const monthDelta = computed(() => {
@@ -79,10 +88,18 @@ const monthDelta = computed(() => {
   return { amount, percent: prevTotal > 0 ? (amount / prevTotal) * 100 : null };
 });
 
-const { earliestDate } = useEarliestTransactionDate();
+const { earliestDate, error: earliestDateError } = useEarliestTransactionDate();
+watch(earliestDateError, (value) => {
+  if (value) captureException({ error: value, context: { scope: 'cash-accounts-widget:earliest-date' } });
+});
+
 const runwayWindow = computed(() => computeRunwayWindow({ now: new Date(), earliestDate: earliestDate.value }));
 
-const { data: windowExpenses, isFetching: isExpensesFetching } = useQuery({
+const {
+  data: windowExpenses,
+  isFetching: isExpensesFetching,
+  error: expensesError,
+} = useQuery({
   queryKey: [...VUE_QUERY_CACHE_KEYS.widgetCashAccountsExpenses, runwayWindow],
   queryFn: () =>
     getExpensesAmountForPeriod({
@@ -92,6 +109,10 @@ const { data: windowExpenses, isFetching: isExpensesFetching } = useQuery({
     }),
   staleTime: Infinity,
   enabled: computed(() => isAppInitialized.value && !!runwayWindow.value),
+});
+
+watch(expensesError, (value) => {
+  if (value) captureException({ error: value, context: { scope: 'cash-accounts-widget:runway-expenses' } });
 });
 
 const runwayMonths = computed(() =>

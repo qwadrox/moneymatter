@@ -1420,3 +1420,104 @@ describe('GET /stats/cash-flow – page-level scope filters', () => {
     expect(result.totals.expenses).toBe(0);
   });
 });
+
+const expenseOn = async ({ accountId, amount, time }: { accountId: RecordId; amount: number; time: string }) => {
+  const [tx] = await helpers.createTransaction({
+    payload: {
+      ...helpers.buildTransactionPayload({ accountId, amount, transactionType: TRANSACTION_TYPES.expense }),
+      time,
+    },
+    raw: true,
+  });
+  return tx;
+};
+
+describe('GET /stats/cash-flow – daily granularity', () => {
+  it('returns one bucket per day and lands expenses on their own day, boundary days included', async () => {
+    const account = await helpers.createAccount({ raw: true });
+
+    await expenseOn({ accountId: account.id, amount: 10, time: '2025-01-01T00:00:00.000Z' });
+    await expenseOn({ accountId: account.id, amount: 20, time: '2025-01-15T12:00:00.000Z' });
+    await expenseOn({ accountId: account.id, amount: 5, time: '2025-01-15T18:00:00.000Z' });
+    await expenseOn({ accountId: account.id, amount: 40, time: '2025-01-31T23:59:59.000Z' });
+    await expenseOn({ accountId: account.id, amount: 99, time: '2025-02-01T00:00:00.000Z' });
+
+    const original = await expenseOn({ accountId: account.id, amount: 100, time: '2025-01-10T12:00:00.000Z' });
+    const [refundTx] = await helpers.createTransaction({
+      payload: {
+        ...helpers.buildTransactionPayload({
+          accountId: account.id,
+          amount: 30,
+          transactionType: TRANSACTION_TYPES.income,
+        }),
+        time: '2025-01-12T12:00:00.000Z',
+      },
+      raw: true,
+    });
+    await helpers.createSingleRefund({ originalTxId: original.id, refundTxId: refundTx.id });
+
+    const result = await helpers.getCashFlow({ from: '2025-01-01', to: '2025-01-31', granularity: 'daily', raw: true });
+
+    expect(result.periods).toHaveLength(31);
+    result.periods.forEach((period, index) => {
+      const day = `2025-01-${String(index + 1).padStart(2, '0')}`;
+      expect(period.periodStart).toBe(day);
+      expect(period.periodEnd).toBe(day);
+    });
+
+    const expensesByDay = Object.fromEntries(result.periods.map((p) => [p.periodStart, p.expenses]));
+    expect(expensesByDay['2025-01-01']).toBe(10);
+    expect(expensesByDay['2025-01-10']).toBe(100);
+    expect(expensesByDay['2025-01-12']).toBe(-30);
+    expect(expensesByDay['2025-01-15']).toBe(25);
+    expect(expensesByDay['2025-01-31']).toBe(40);
+    expect(expensesByDay['2025-01-02']).toBe(0);
+
+    expect(result.periods.find((p) => p.periodStart === '2025-01-12')!.income).toBe(0);
+    expect(result.totals.expenses).toBe(145);
+  });
+
+  it('returns a zeroed bucket for every day when the range has no transactions', async () => {
+    const result = await helpers.getCashFlow({ from: '2025-03-01', to: '2025-03-07', granularity: 'daily', raw: true });
+
+    expect(result.periods.map((p) => p.periodStart)).toEqual([
+      '2025-03-01',
+      '2025-03-02',
+      '2025-03-03',
+      '2025-03-04',
+      '2025-03-05',
+      '2025-03-06',
+      '2025-03-07',
+    ]);
+    result.periods.forEach((period) => {
+      expect(period.income).toBe(0);
+      expect(period.expenses).toBe(0);
+      expect(period.netFlow).toBe(0);
+    });
+    expect(result.totals.expenses).toBe(0);
+  });
+
+  it('rejects an unknown granularity with 422', async () => {
+    const response = await helpers.makeRequest({
+      method: 'get',
+      url: '/stats/cash-flow?from=2025-01-01&to=2025-01-31&granularity=hourly',
+    });
+
+    expect(response.statusCode).toBe(422);
+  });
+
+  it('rejects a daily range longer than a year with 422', async () => {
+    const response = await helpers.getCashFlow({ from: '2024-01-01', to: '2025-12-31', granularity: 'daily' });
+
+    expect(response.statusCode).toBe(422);
+  });
+
+  it('accepts exactly 366 daily buckets and rejects 367', async () => {
+    const atCap = await helpers.getCashFlow({ from: '2024-01-01', to: '2024-12-31', granularity: 'daily' });
+    expect(atCap.statusCode).toBe(200);
+    expect(helpers.extractResponse(atCap).periods).toHaveLength(366);
+
+    const overCap = await helpers.getCashFlow({ from: '2024-01-01', to: '2025-01-01', granularity: 'daily' });
+    expect(overCap.statusCode).toBe(422);
+  });
+});

@@ -23,7 +23,7 @@ import { type Bucket, type BucketKey, computeAssetsLiabilities, formatShareLabel
 const BUCKETS: Record<BucketKey, { colorClass: string; labelKey: string }> = {
   investments: { colorClass: 'bg-primary', labelKey: 'dashboard.widgets.assetsLiabilities.buckets.investments' },
   cash: { colorClass: 'bg-app-income-color', labelKey: 'dashboard.widgets.assetsLiabilities.buckets.cash' },
-  ventures: { colorClass: 'bg-warning-text', labelKey: 'dashboard.widgets.assetsLiabilities.buckets.ventures' },
+  ventures: { colorClass: 'bg-warning', labelKey: 'dashboard.widgets.assetsLiabilities.buckets.ventures' },
   vehicles: { colorClass: 'bg-muted-foreground', labelKey: 'dashboard.widgets.assetsLiabilities.buckets.vehicles' },
   loans: { colorClass: 'bg-app-expense-color', labelKey: 'dashboard.widgets.assetsLiabilities.buckets.loans' },
   creditAndOverdrafts: {

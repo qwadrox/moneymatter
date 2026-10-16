@@ -50,6 +50,7 @@ describe('computeRunwayWindow', () => {
 
   it('returns null without a full month of history', () => {
     expect(computeRunwayWindow({ now, earliestDate: new Date(2026, 8, 15) })).toBeNull();
+    expect(computeRunwayWindow({ now, earliestDate: new Date(2026, 9, 1) })).toBeNull();
     expect(computeRunwayWindow({ now, earliestDate: undefined })).toBeNull();
   });
 });
