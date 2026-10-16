@@ -28,6 +28,9 @@ export const automationActionsInput = actionsSchema.describe(
     '- { "type": "add_tags", "tagIds": ["<uuid>"] } with 1-20 tag ids',
     '- { "type": "set_payee", "payeeId": "<uuid>" }',
     '- { "type": "set_note", "mode": "replace" | "append" | "prepend", "value": "<text, max 200 chars>" }',
-    'Every referenced category, tag, and payee must belong to the user, otherwise the call is rejected.',
+    '- { "type": "link_transfer", "accountId": "<uuid>", "matchBy": "amount" | "reference", "dateBasis": "transaction" | "value", "maxDaysApart": 0-10 } links the row as a transfer with the closest unlinked opposite-type row on that account (same amount and currency, or the same bank reference for currency conversions); runs after each bank sync',
+    '- { "type": "link_loan_payment", "loanAccountId": "<uuid>" } links an expense as a payment to that loan account; runs after each bank sync',
+    'A rule holds at most one link action.',
+    'Every referenced category, tag, payee, and account must belong to the user, otherwise the call is rejected.',
   ].join('\n'),
 );
