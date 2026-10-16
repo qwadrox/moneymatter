@@ -237,4 +237,22 @@ describe('buildAutomationChips', () => {
 
     expect(then).toEqual([{ kind: 'note', labelKey, value: 'note' }]);
   });
+  test('link actions render the linked account with their own label', () => {
+    const transfer = chips(
+      makeRule({
+        items: [],
+        actions: [
+          { type: 'link_transfer', accountId: id('a1'), matchBy: 'amount', dateBasis: 'value', maxDaysApart: 0 },
+        ],
+      }),
+    );
+    expect(transfer.then).toEqual([
+      { kind: 'ref', refType: 'account', id: 'a1', negated: false, labelKey: 'automations.chips.linkTransfer' },
+    ]);
+
+    const loan = chips(makeRule({ items: [], actions: [{ type: 'link_loan_payment', loanAccountId: id('l1') }] }));
+    expect(loan.then).toEqual([
+      { kind: 'ref', refType: 'account', id: 'l1', negated: false, labelKey: 'automations.chips.linkLoanPayment' },
+    ]);
+  });
 });

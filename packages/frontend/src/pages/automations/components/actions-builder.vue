@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ResponsiveMenu from '@/components/common/responsive-menu.vue';
+import AccountSelectField from '@/components/fields/account-select-field.vue';
 import CategorySelectField from '@/components/fields/category-select-field.vue';
 import InputField from '@/components/fields/input-field.vue';
 import PayeeSelectField from '@/components/fields/payee-select-field.vue';
@@ -7,13 +8,19 @@ import TagSelectField from '@/components/fields/tag-select-field.vue';
 import { Button } from '@/components/lib/ui/button';
 import { PillTabs } from '@/components/lib/ui/pill-tabs';
 import { DesktopOnlyTooltip } from '@/components/lib/ui/tooltip';
-import { useCategoriesStore } from '@/stores';
+import { useAccountsStore, useCategoriesStore } from '@/stores';
 import { findFormattedCategoryById } from '@/stores/categories/helpers';
 import {
+  ACCOUNT_CATEGORIES,
   AUTOMATION_LIMITS,
+  AUTOMATION_LINK_ACTION_TYPES,
   AUTOMATION_NOTE_MODES,
+  AUTOMATION_TRANSFER_DATE_BASES,
+  AUTOMATION_TRANSFER_MATCH_MODES,
   type AutomationActionType,
   type AutomationNoteMode,
+  type AutomationTransferDateBasis,
+  type AutomationTransferMatchMode,
   type RecordId,
 } from '@bt/shared/types';
 import { PlusIcon, Trash2Icon } from '@lucide/vue';
@@ -29,6 +36,18 @@ const emit = defineEmits<{ 'update:modelValue': [value: AutomationActionDraft[]]
 
 const { t } = useI18n();
 const { formattedCategories, categoriesMap } = storeToRefs(useCategoriesStore());
+const { accounts, accountsRecord } = storeToRefs(useAccountsStore());
+
+const isLinkType = (type: AutomationActionType) => (AUTOMATION_LINK_ACTION_TYPES as readonly string[]).includes(type);
+
+/** A transfer leg can't sit on a loan account; loan payments go through `link_loan_payment`. */
+const transferAccounts = computed(() =>
+  (accounts.value ?? []).filter((account) => account.accountCategory !== ACCOUNT_CATEGORIES.loan),
+);
+const loanAccounts = computed(() =>
+  (accounts.value ?? []).filter((account) => account.accountCategory === ACCOUNT_CATEGORIES.loan),
+);
+const accountById = (id: RecordId | null) => (id ? (accountsRecord.value[id] ?? null) : null);
 
 const isMenuOpen = ref(false);
 
@@ -38,15 +57,30 @@ const FIELD_WIDTH: Record<AutomationActionType, string> = {
   set_payee: '@xl/action:w-72',
   add_tags: '@xl/action:flex-1 @xl/action:max-w-xl',
   set_note: '@xl/action:flex-1 @xl/action:max-w-xl',
+  link_transfer: '@xl/action:flex-1 @xl/action:max-w-2xl',
+  link_loan_payment: '@xl/action:w-72',
 };
 
+/** A rule links a row one way only, so picking one link action hides the other. */
 const availableTypes = computed(() => {
   const used = new Set(props.modelValue.map((action) => action.type));
-  return ACTION_TYPES.filter((type) => !used.has(type));
+  const hasLink = props.modelValue.some((action) => isLinkType(action.type));
+  return ACTION_TYPES.filter((type) => !used.has(type) && !(hasLink && isLinkType(type)));
 });
 
 const noteModeTabs = computed(() =>
   AUTOMATION_NOTE_MODES.map((mode) => ({ value: mode, label: t(`automations.actions.noteMode.${mode}`) })),
+);
+
+const matchByTabs = computed(() =>
+  AUTOMATION_TRANSFER_MATCH_MODES.map((mode) => ({ value: mode, label: t(`automations.actions.matchBy.${mode}`) })),
+);
+
+const dateBasisTabs = computed(() =>
+  AUTOMATION_TRANSFER_DATE_BASES.map((basis) => ({
+    value: basis,
+    label: t(`automations.actions.dateBasis.${basis}`),
+  })),
 );
 
 const replaceAt = ({ index, action }: { index: number; action: AutomationActionDraft }) =>
@@ -123,6 +157,60 @@ const addAction = ({ type, close }: { type: AutomationActionType; close: () => v
                 @update:model-value="(value) => replaceAt({ index, action: { ...action, value: String(value ?? '') } })"
               />
             </div>
+
+            <div v-else-if="action.type === 'link_transfer'" class="flex flex-col gap-2">
+              <AccountSelectField
+                :model-value="accountById(action.accountId)"
+                :accounts="transferAccounts"
+                :placeholder="$t('automations.editor.transferAccountPlaceholder')"
+                @update:model-value="
+                  (account) => replaceAt({ index, action: { ...action, accountId: (account?.id as RecordId) ?? null } })
+                "
+              />
+              <div class="flex flex-wrap items-center gap-2">
+                <PillTabs
+                  size="sm"
+                  :items="matchByTabs"
+                  :model-value="action.matchBy"
+                  @update:model-value="
+                    (matchBy) =>
+                      replaceAt({ index, action: { ...action, matchBy: matchBy as AutomationTransferMatchMode } })
+                  "
+                />
+                <PillTabs
+                  size="sm"
+                  :items="dateBasisTabs"
+                  :model-value="action.dateBasis"
+                  @update:model-value="
+                    (dateBasis) =>
+                      replaceAt({ index, action: { ...action, dateBasis: dateBasis as AutomationTransferDateBasis } })
+                  "
+                />
+                <InputField
+                  :model-value="action.maxDaysApart"
+                  type="number"
+                  :min="0"
+                  :max="AUTOMATION_LIMITS.maxTransferDaysApart"
+                  class="w-24"
+                  :placeholder="$t('automations.editor.daysApartPlaceholder')"
+                  @update:model-value="
+                    (value) => replaceAt({ index, action: { ...action, maxDaysApart: Number(value ?? 0) } })
+                  "
+                />
+                <span class="text-muted-foreground text-xs">{{ $t('automations.editor.daysApartSuffix') }}</span>
+              </div>
+            </div>
+
+            <AccountSelectField
+              v-else-if="action.type === 'link_loan_payment'"
+              :model-value="accountById(action.loanAccountId)"
+              :accounts="loanAccounts"
+              :placeholder="$t('automations.editor.loanAccountPlaceholder')"
+              @update:model-value="
+                (account) =>
+                  replaceAt({ index, action: { ...action, loanAccountId: (account?.id as RecordId) ?? null } })
+              "
+            />
           </div>
 
           <DesktopOnlyTooltip :content="$t('automations.editor.removeAction')">
@@ -138,6 +226,10 @@ const addAction = ({ type, close }: { type: AutomationActionType; close: () => v
             </Button>
           </DesktopOnlyTooltip>
         </div>
+
+        <p v-if="isLinkType(action.type)" class="text-muted-foreground mt-2 text-xs">
+          {{ $t('automations.editor.linkActionHint') }}
+        </p>
 
         <FieldError :error-message="errors[index]" class="mt-2" />
       </div>

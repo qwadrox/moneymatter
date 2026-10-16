@@ -116,6 +116,20 @@ export const actionError = ({
         ? error('automations.editor.errors.noteTooLong', { max: AUTOMATION_LIMITS.maxNoteLength })
         : null;
     }
+    case 'link_transfer': {
+      if (!action.accountId) return error('automations.editor.errors.transferAccountRequired');
+      const { maxDaysApart } = action;
+      if (!Number.isInteger(maxDaysApart) || maxDaysApart < 0 || maxDaysApart > AUTOMATION_LIMITS.maxTransferDaysApart)
+        return error('automations.editor.errors.daysApartRange', { max: AUTOMATION_LIMITS.maxTransferDaysApart });
+      return hasMissingRef({ type: 'account', ids: [action.accountId] })
+        ? error('automations.editor.errors.missingRef')
+        : null;
+    }
+    case 'link_loan_payment':
+      if (!action.loanAccountId) return error('automations.editor.errors.loanAccountRequired');
+      return hasMissingRef({ type: 'account', ids: [action.loanAccountId] })
+        ? error('automations.editor.errors.missingRef')
+        : null;
   }
 };
 

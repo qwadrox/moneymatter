@@ -143,6 +143,9 @@ const tagStyle = computed(() => {
       <span v-if="chip.kind === 'ref' && chip.negated" class="text-muted-foreground font-normal">
         {{ $t('automations.chips.not') }}
       </span>
+      <span v-if="chip.kind === 'ref' && chip.labelKey" class="text-muted-foreground font-normal">
+        {{ $t(chip.labelKey) }}
+      </span>
 
       <DesktopOnlyTooltip :content="visual.name" :disabled="!isAvatarOnly">
         <span class="flex min-w-0 items-center gap-1.5">
