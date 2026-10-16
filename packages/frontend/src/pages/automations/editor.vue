@@ -130,6 +130,8 @@ const finalizeActions = ({ actions }: { actions: AutomationActionDraft[] }): Aut
   actions.map((action): AutomationAction => {
     if (action.type === 'set_category') return { ...action, categoryId: action.categoryId! };
     if (action.type === 'set_payee') return { ...action, payeeId: action.payeeId! };
+    if (action.type === 'link_transfer') return { ...action, accountId: action.accountId! };
+    if (action.type === 'link_loan_payment') return { ...action, loanAccountId: action.loanAccountId! };
     return action;
   });
 

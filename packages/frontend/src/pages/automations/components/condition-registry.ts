@@ -54,17 +54,30 @@ export const CONDITION_REGISTRY: Record<
 
 export const CONDITION_FIELDS = Object.keys(CONDITION_REGISTRY) as AutomationConditionField[];
 
-/** `set_category` and `set_payee` start empty in the editor; validation blocks saving them that way. */
+/** Ref-holding actions start empty in the editor; validation blocks saving them that way. */
 export type AutomationActionDraft =
   | { type: 'set_category'; categoryId: RecordId | null }
   | { type: 'set_payee'; payeeId: RecordId | null }
-  | Extract<AutomationAction, { type: 'add_tags' } | { type: 'set_note' }>;
+  | Extract<AutomationAction, { type: 'add_tags' } | { type: 'set_note' }>
+  | (Omit<Extract<AutomationAction, { type: 'link_transfer' }>, 'accountId'> & { accountId: RecordId | null })
+  | { type: 'link_loan_payment'; loanAccountId: RecordId | null };
+
+/** Same-amount pairs within this many days unless the user narrows it; matches the bank-sync heuristic window. */
+const DEFAULT_TRANSFER_DAYS_APART = 3;
 
 export const ACTION_DEFAULTS: Record<AutomationActionType, () => AutomationActionDraft> = {
   set_category: () => ({ type: 'set_category', categoryId: null }),
   set_payee: () => ({ type: 'set_payee', payeeId: null }),
   add_tags: () => ({ type: 'add_tags', tagIds: [] }),
   set_note: () => ({ type: 'set_note', mode: 'replace', value: '' }),
+  link_transfer: () => ({
+    type: 'link_transfer',
+    accountId: null,
+    matchBy: 'amount',
+    dateBasis: 'transaction',
+    maxDaysApart: DEFAULT_TRANSFER_DAYS_APART,
+  }),
+  link_loan_payment: () => ({ type: 'link_loan_payment', loanAccountId: null }),
 };
 
 export const ACTION_TYPES = Object.keys(ACTION_DEFAULTS) as AutomationActionType[];

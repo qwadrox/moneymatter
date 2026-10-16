@@ -32,7 +32,7 @@ export type AutomationChip =
       keywords: string[];
     }
   | { kind: 'dayOfMonth'; value: string }
-  | { kind: 'ref'; refType: AutomationRefType; id: RecordId; negated: boolean }
+  | { kind: 'ref'; refType: AutomationRefType; id: RecordId; negated: boolean; labelKey?: string }
   | { kind: 'note'; labelKey: string; value: string };
 
 export type AutomationRulePreview = Pick<TransactionAutomationModel, 'conditions' | 'actions'>;
@@ -147,6 +147,26 @@ const buildActionChips = ({ action }: { action: AutomationAction }): AutomationC
           kind: 'note',
           labelKey: NOTE_ACTION_LABEL_KEY[action.mode],
           value: action.value,
+        },
+      ];
+    case 'link_transfer':
+      return [
+        {
+          kind: 'ref',
+          refType: 'account',
+          id: action.accountId,
+          negated: false,
+          labelKey: 'automations.chips.linkTransfer',
+        },
+      ];
+    case 'link_loan_payment':
+      return [
+        {
+          kind: 'ref',
+          refType: 'account',
+          id: action.loanAccountId,
+          negated: false,
+          labelKey: 'automations.chips.linkLoanPayment',
         },
       ];
   }

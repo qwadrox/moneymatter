@@ -213,6 +213,39 @@ describe('actionError', () => {
     });
     expect(action({ type: 'set_note', mode: 'prepend', value: 'paid' })).toBeNull();
   });
+  test('link_transfer requires an account and a day window within the limit', () => {
+    const draft = (overrides: Partial<Extract<AutomationActionDraft, { type: 'link_transfer' }>> = {}) =>
+      action({
+        type: 'link_transfer',
+        accountId: id('a1'),
+        matchBy: 'amount',
+        dateBasis: 'value',
+        maxDaysApart: 0,
+        ...overrides,
+      });
+
+    expect(draft({ accountId: null })).toEqual({
+      key: 'automations.editor.errors.transferAccountRequired',
+      params: undefined,
+    });
+    expect(draft({ maxDaysApart: 11 })).toEqual({
+      key: 'automations.editor.errors.daysApartRange',
+      params: { max: 10 },
+    });
+    expect(draft({ maxDaysApart: 1.5 })?.key).toBe('automations.editor.errors.daysApartRange');
+    expect(draft()).toBeNull();
+  });
+
+  test('link_loan_payment requires a loan and flags a deleted one', () => {
+    expect(action({ type: 'link_loan_payment', loanAccountId: null })).toEqual({
+      key: 'automations.editor.errors.loanAccountRequired',
+      params: undefined,
+    });
+    expect(
+      actionError({ action: { type: 'link_loan_payment', loanAccountId: id('l1') }, hasMissingRef: () => true }),
+    ).toEqual({ key: 'automations.editor.errors.missingRef', params: undefined });
+    expect(action({ type: 'link_loan_payment', loanAccountId: id('l1') })).toBeNull();
+  });
 });
 
 describe('migrateAmountBounds', () => {

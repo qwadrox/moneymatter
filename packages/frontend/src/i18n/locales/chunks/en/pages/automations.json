@@ -39,6 +39,8 @@
       "noteReplace": "set note",
       "noteAppend": "append",
       "notePrepend": "prepend",
+      "linkTransfer": "transfer with",
+      "linkLoanPayment": "loan payment to",
       "note": {
         "containsAny": "note has",
         "notContainsAny": "note lacks",
@@ -112,10 +114,20 @@
       "set_payee": "Set payee",
       "add_tags": "Add tags",
       "set_note": "Set note",
+      "link_transfer": "Link as transfer",
+      "link_loan_payment": "Link as loan payment",
       "noteMode": {
         "replace": "Replace",
         "append": "Append",
         "prepend": "Prepend"
+      },
+      "matchBy": {
+        "amount": "Same amount",
+        "reference": "Same bank reference"
+      },
+      "dateBasis": {
+        "transaction": "Transaction date",
+        "value": "Value date"
       }
     },
     "editor": {
@@ -157,6 +169,11 @@
       "payeePlaceholder": "Select a payee",
       "tagsPlaceholder": "Select tags",
       "notePlaceholder": "Enter the note text",
+      "transferAccountPlaceholder": "Select the account with the other leg",
+      "loanAccountPlaceholder": "Select a loan",
+      "daysApartPlaceholder": "0",
+      "daysApartSuffix": "days apart at most",
+      "linkActionHint": "Runs after every bank sync, so a leg that arrives days later still gets linked. A link you undo by hand stays undone.",
       "saveSuccess": "Automation saved.",
       "notFound": {
         "title": "Automation not found",
@@ -197,6 +214,9 @@
         "tagsRequired": "Select at least one tag.",
         "noteRequired": "Enter the note text.",
         "noteTooLong": "The note must be {max} characters or fewer.",
+        "transferAccountRequired": "Select the account that holds the other leg.",
+        "loanAccountRequired": "Select a loan.",
+        "daysApartRange": "Enter a whole number of days between 0 and {max}.",
         "saveFailed": "Could not save the automation. Please try again.",
         "transactionTypeDuplicate": "Only one transaction type condition is allowed"
       },
